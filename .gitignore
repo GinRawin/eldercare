@@ -1,0 +1,21 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+*.db
+*.sqlite3
+
+# DDInter 原始数据（不提交，见 scripts/import_ddinter.py 说明）
+data/
+scripts/ddinter_raw/
+
+# IDE
+.idea/
+.vscode/
+*.swp
