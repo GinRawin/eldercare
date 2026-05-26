@@ -9,13 +9,13 @@ class RiskCheckRequest(BaseModel):
 
 
 class RiskAlert(BaseModel):
-    type: str          # drug_drug / drug_food / food_allergy / disease_related
-    severity: str      # high / medium / low
+    type: str  # drug_drug / drug_food / food_allergy / disease_related
+    severity: str  # high / medium / low
     message: str
-    source: str        # DDInter / model_assisted / profile
+    source: str  # DDInter / model_assisted / profile
 
 
 class RiskCheckResponse(BaseModel):
-    risk_level: str    # red / yellow / green
+    risk_level: str  # red / yellow / green
     alerts: list[RiskAlert]
     suggestion: str

@@ -30,7 +30,9 @@ def create_rule(body: ReminderRuleCreate, db: Session = Depends(get_db)):
     return {"rule_id": rule.rule_id}
 
 
-@router.post("/{reminder_id}/complete", response_model=ReminderActionResponse, summary="标记提醒已完成")
+@router.post(
+    "/{reminder_id}/complete", response_model=ReminderActionResponse, summary="标记提醒已完成"
+)
 def complete_reminder(reminder_id: int, db: Session = Depends(get_db)):
     return _update_status(reminder_id, "completed", db)
 
@@ -51,6 +53,6 @@ def _update_status(event_id: int, status: str, db: Session) -> ReminderActionRes
         raise HTTPException(status_code=404, detail="Reminder not found")
     event.status = status
     if status == "completed":
-        event.completed_at = datetime.utcnow().isoformat()
+        event.completed_at = datetime.utcnow()
     db.commit()
     return ReminderActionResponse(event_id=event_id, status=status)

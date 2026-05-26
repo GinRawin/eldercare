@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel
 
 
@@ -14,9 +16,11 @@ class ReminderEventOut(BaseModel):
     rule_id: int
     elder_id: str
     title: str
-    due_at: str
+    # Step 3 调整：底层改为 DateTime；Pydantic 序列化为 ISO 8601 字符串，
+    # JSON 表层格式与字段名保持不变，Dify 侧无需重新导入
+    due_at: datetime
     status: str
-    completed_at: str | None = None
+    completed_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
