@@ -29,7 +29,9 @@ from datetime import date, datetime, time, timedelta
 
 from sqlalchemy.orm import Session
 
+from app.models.medication_plan import MedicationPlan
 from app.models.reminder import ReminderEvent, ReminderRule
+from app.schemas.reminder import MedicationPlanCreate, MedicationPlanResponse
 
 # ---------- repeat_pattern 解析 ----------
 
@@ -222,4 +224,115 @@ def materialize_events(
         rules_processed=len(rules),
         events_created=created,
         events_skipped_existing=skipped,
+    )
+
+
+# ---------------------------------------------------------------------------
+# 用药计划：一次请求 → medication_plan + 1 条锚点 reminder_rule + N 条 reminder_event
+# ---------------------------------------------------------------------------
+
+
+def _format_hours(hours: float) -> str:
+    """8.0 → '8'，6.5 → '6.5'；用于生成 frequency / title 文案。"""
+    return str(int(hours)) if float(hours).is_integer() else str(hours)
+
+
+def _format_hhmm(dt: datetime) -> str:
+    """`HH:MM`，跨天后小时也保持 0~23（用于 reminder_rule.schedule_time 锚点）。"""
+    return dt.strftime("%H:%M")
+
+
+def create_medication_plan(
+    db: Session,
+    payload: MedicationPlanCreate,
+) -> MedicationPlanResponse:
+    """根据 (drug_name, dose_per_time, duration_days, times_per_day, interval_hours, start_at)
+    一次性建立：
+      - 1 条 medication_plan（用药计划元数据）
+      - 1 条 reminder_rule（锚点，给 reminder_event.rule_id NOT NULL 外键用）
+      - N 条 reminder_event（N = duration_days × times_per_day，
+        按 interval_hours 等间隔从 start_at 排）
+
+    全部写入在同一事务里：任一步失败则 rollback。
+    """
+    start_at = payload.start_at or datetime.utcnow()
+    total_doses = payload.duration_days * payload.times_per_day
+
+    # 计算所有 due_at（严格按 interval_hours 等间隔，允许跨天）
+    interval = timedelta(hours=payload.interval_hours)
+    due_at_list = [start_at + interval * i for i in range(total_doses)]
+
+    # 第一天（与 start_at 同 calendar date）的 HH:MM，写入 medication_plan.time_of_day
+    first_day = start_at.date()
+    first_day_times = [_format_hhmm(d) for d in due_at_list if d.date() == first_day]
+
+    title = f"{payload.drug_name} {payload.dose_per_time}"
+    interval_label = _format_hours(payload.interval_hours)
+    frequency_text = (
+        f"每日 {payload.times_per_day} 次，间隔 {interval_label} 小时，"
+        f"共 {payload.duration_days} 天"
+    )
+
+    # 温和校验：times_per_day × interval_hours 应接近 24，偏差大则给 warning，但不拒绝
+    warning: str | None = None
+    coverage = payload.times_per_day * payload.interval_hours
+    if abs(coverage - 24) > 12 and payload.times_per_day > 1:
+        warning = (
+            f"times_per_day × interval_hours = {coverage:g}h，与 24h 偏差较大，"
+            "请确认参数是否符合实际用药计划"
+        )
+
+    try:
+        # 1) medication_plan
+        plan = MedicationPlan(
+            elder_id=payload.elder_id,
+            drug_name=payload.drug_name,
+            dosage=payload.dose_per_time,
+            frequency=frequency_text,
+            time_of_day=",".join(first_day_times) if first_day_times else None,
+            with_meal=False,
+            notes=payload.notes,
+            active=True,
+        )
+        db.add(plan)
+        db.flush()  # 拿 plan_id
+
+        # 2) reminder_rule（锚点，repeat_pattern 用 daily 即可，事件已直接物化好）
+        rule = ReminderRule(
+            elder_id=payload.elder_id,
+            type="medication",
+            title=title,
+            schedule_time=_format_hhmm(start_at),  # 仅放第一次时刻，列宽 VARCHAR(8) 够
+            repeat_pattern="daily",
+            active=True,
+        )
+        db.add(rule)
+        db.flush()  # 拿 rule_id
+
+        # 3) reminder_event × N
+        events = [
+            ReminderEvent(
+                rule_id=rule.rule_id,
+                elder_id=payload.elder_id,
+                title=title,
+                due_at=due_at,
+                status="pending",
+            )
+            for due_at in due_at_list
+        ]
+        db.add_all(events)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    return MedicationPlanResponse(
+        plan_id=plan.plan_id,
+        rule_id=rule.rule_id,
+        drug_name=payload.drug_name,
+        dose_per_time=payload.dose_per_time,
+        events_created=total_doses,
+        first_due_at=due_at_list[0],
+        last_due_at=due_at_list[-1],
+        warning=warning,
     )

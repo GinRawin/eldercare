@@ -5,7 +5,14 @@ from sqlalchemy.orm import Session
 
 from app.deps import get_db
 from app.models.reminder import ReminderEvent, ReminderRule
-from app.schemas.reminder import ReminderActionResponse, ReminderEventOut, ReminderRuleCreate
+from app.schemas.reminder import (
+    MedicationPlanCreate,
+    MedicationPlanResponse,
+    ReminderActionResponse,
+    ReminderEventOut,
+    ReminderRuleCreate,
+)
+from app.services.reminder_service import create_medication_plan
 
 router = APIRouter(prefix="/reminders", tags=["reminders"])
 
@@ -28,6 +35,23 @@ def create_rule(body: ReminderRuleCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(rule)
     return {"rule_id": rule.rule_id}
+
+
+@router.post(
+    "/medication-plan",
+    response_model=MedicationPlanResponse,
+    status_code=201,
+    summary="创建用药计划（自动展开为 N 条提醒事件）",
+)
+def create_medication_plan_endpoint(body: MedicationPlanCreate, db: Session = Depends(get_db)):
+    """
+    一次请求即建立完整的用药计划：
+
+    - 入参：药物名、每次剂量、持续天数、一天频次、间隔小时、起始时间（可选）
+    - 落库：medication_plan + 1 条锚点 reminder_rule + N 条 reminder_event
+    - N = duration_days × times_per_day，事件按 interval_hours 严格等间隔从 start_at 排，允许跨天
+    """
+    return create_medication_plan(db, body)
 
 
 @router.post(
