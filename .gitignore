@@ -13,7 +13,9 @@ build/
 
 # DDInter 原始数据（不提交，见 scripts/import_ddinter.py 说明）
 data/
-scripts/ddinter_raw/
+scripts/ddinter_raw/*
+!scripts/ddinter_raw/README.md
+!scripts/ddinter_raw/aliases.yaml
 
 # IDE
 .idea/

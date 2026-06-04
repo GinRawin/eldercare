@@ -1,47 +1,57 @@
-import json
-
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.deps import get_db
-from app.models.elder_profile import ElderProfile
-from app.schemas.risk import RiskAlert, RiskCheckRequest, RiskCheckResponse
+from app.schemas.risk import RiskCheckRequest, RiskCheckResponse
+from app.schemas.safety import SafetyCheckRequest, SafetyCheckResponse
+from app.services.risk_service import check_risk
+from app.services.safety_service import check_safety
 
 router = APIRouter(prefix="/risk", tags=["risk"])
 
 
 @router.post("/check", response_model=RiskCheckResponse, summary="药物食物风险检查")
-def check_risk(body: RiskCheckRequest, db: Session = Depends(get_db)):
+def check_risk_endpoint(body: RiskCheckRequest, db: Session = Depends(get_db)):
     """
-    第一版 stub:
-    - 查询老人档案的过敏和基础疾病
-    - 后端成员 2 在此填充 DDInter 查询和风险判断逻辑
+    风险检查接口（block 2 完成）。
+
+    聚合四类风险：
+    - drug_drug      ：DDInter 本地查询（含中英文别名解析）
+    - food_allergy   ：与老人档案 allergies 字段比对
+    - disease_related：基于老人档案 diseases 与启发式规则
+    - drug_food      ：第一版交由 Dify 侧模型辅助，service 保留接口位
+
+    返回 risk_level ∈ {red, yellow, green}，并附医疗免责声明。
     """
-    alerts: list[RiskAlert] = []
+    return check_risk(
+        db=db,
+        elder_id=body.elder_id,
+        drugs=body.drugs,
+        foods=body.foods,
+        context=body.context,
+    )
 
-    profile = db.get(ElderProfile, body.elder_id)
-    if profile:
-        allergies: list[str] = json.loads(profile.allergies) if profile.allergies else []
-        for food in body.foods:
-            if food in allergies:
-                alerts.append(RiskAlert(
-                    type="food_allergy",
-                    severity="high",
-                    message=f"{food} 在老人的过敏记录中。",
-                    source="profile",
-                ))
 
-    # TODO(backend-member-2): 在此插入 DDInter 药药相互作用查询
-    # TODO(backend-member-2): 在此插入药食相互作用判断
+@router.post(
+    "/safety-check",
+    response_model=SafetyCheckResponse,
+    summary="药物/食物安全检查（供大模型调用）",
+)
+def safety_check_endpoint(body: SafetyCheckRequest, db: Session = Depends(get_db)):
+    """
+    供 Dify 大模型调用的单项安全检查接口。
 
-    if any(a.severity == "high" for a in alerts):
-        risk_level = "red"
-        suggestion = "存在高风险提示，请咨询医生或药师，切勿自行判断。"
-    elif alerts:
-        risk_level = "yellow"
-        suggestion = "存在潜在风险，请谨慎使用并关注身体反应。"
-    else:
-        risk_level = "green"
-        suggestion = "未发现明确风险。本系统不能替代专业医疗意见，如有疑问请咨询医生。"
+    传入单个中文药物/食物名 + 老人 ID，后端完成完整流程：
+    1. 别名扩展（调大模型客户端；未配置时降级为仅原始名）
+    2. 过敏史命中（老人档案 allergies × 别名列表）
+    3. DDInter 相互作用查询（输入名 × 老人在用药物）
+    4. 综合成一段自然语言结论（conclusion），供大模型直接使用
 
-    return RiskCheckResponse(risk_level=risk_level, alerts=alerts, suggestion=suggestion)
+    返回含 conclusion 文字结论 + 结构化字段（risk_level / interactions 等）。
+    """
+    return check_safety(
+        db=db,
+        elder_id=body.elder_id,
+        name=body.name,
+        context=body.context,
+    )
