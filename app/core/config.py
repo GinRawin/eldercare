@@ -15,5 +15,11 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "gpt-4o-mini"
     LLM_TIMEOUT: float = 10.0  # 秒
 
+    # Dify 配置：由后端代理统一调用，前端不直接暴露 Key。
+    DIFY_BASE_URL: str = ""
+    DIFY_DIET_API_KEY: str = ""
+    DIFY_MED_API_KEY: str = ""
+    DIFY_TIMEOUT: float = 20.0
+
 
 settings = Settings()

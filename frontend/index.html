@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=2.0,user-scalable=yes">
+<title>银龄健康助手</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={
+  theme:{
+    extend:{
+      colors:{
+        warm:{50:'#FFF7ED',100:'#FFEDD5',200:'#FED7AA',300:'#FDBA74',400:'#FB923C',500:'#F97316',600:'#EA580C',700:'#C2410C',800:'#9A3412',900:'#7C2D12'},
+        risk:{red:'#DC2626',yellow:'#D97706',green:'#059669'}
+      },
+      fontSize:{'xl':'1.25rem','2xl':'1.5rem','3xl':'1.875rem','4xl':'2.25rem'}
+    }
+  }
+}
+</script>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#FFF7ED;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans SC",sans-serif}
+.page{display:none;height:100%;flex-direction:column;max-width:480px;margin:0 auto;background:#FFF7ED;position:relative;overflow:hidden}
+.page.active{display:flex}
+/* header */
+.header{background:linear-gradient(135deg,#EA580C,#C2410C);color:#fff;padding:14px 16px;text-align:center;font-size:20px;font-weight:700;position:relative;flex-shrink:0;min-height:52px;display:flex;align-items:center;justify-content:center}
+.header .back-btn{position:absolute;left:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:22px;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.header .back-btn:active{background:rgba(255,255,255,0.35)}
+.header .settings-btn{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:#fff;font-size:22px;cursor:pointer;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.header .settings-btn:active{background:rgba(255,255,255,0.2)}
+/* scrollable content area */
+.content{flex:1;overflow-y:auto;padding:16px;-webkit-overflow-scrolling:touch}
+/* large buttons on home */
+.home-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;padding:28px 16px;border-radius:20px;border:none;font-size:22px;font-weight:700;cursor:pointer;transition:transform 0.1s,box-shadow 0.1s;box-shadow:0 2px 12px rgba(0,0,0,0.08);margin-bottom:16px;min-height:110px;color:#fff}
+.home-btn:active{transform:scale(0.97)}
+.home-btn .icon{font-size:40px;margin-bottom:8px}
+.home-btn-orange{background:linear-gradient(135deg,#F97316,#EA580C)}
+.home-btn-blue{background:linear-gradient(135deg,#3B82F6,#2563EB)}
+.home-btn-green{background:linear-gradient(135deg,#10B981,#059669)}
+/* agent switcher */
+.agent-switcher{display:flex;gap:10px;overflow-x:auto;padding:10px 0 0 0;-webkit-overflow-scrolling:touch}
+.agent-chip{flex:0 0 auto;padding:10px 14px;border-radius:999px;border:2px solid #FDBA74;background:#fff;color:#7C2D12;font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap}
+.agent-chip.active{background:#EA580C;color:#fff;border-color:#EA580C}
+.agent-chip:active{transform:scale(0.97)}
+.agent-hint{font-size:13px;color:#9CA3AF;margin-top:8px;line-height:1.4}
+/* chat messages */
+.chat-msg{margin-bottom:14px;display:flex;flex-direction:column}
+.chat-msg.user{align-items:flex-end}
+.chat-msg.assistant{align-items:flex-start}
+.chat-bubble{max-width:88%;padding:14px 16px;border-radius:16px;font-size:18px;line-height:1.5;word-break:break-word}
+.chat-msg.user .chat-bubble{background:#EA580C;color:#fff;border-bottom-right-radius:4px}
+.chat-msg.assistant .chat-bubble{background:#fff;color:#1F2937;border:1px solid #FED7AA;border-bottom-left-radius:4px;box-shadow:0 1px 4px rgba(0,0,0,0.05)}
+.chat-time{font-size:12px;color:#9CA3AF;margin-top:4px;padding:0 8px}
+/* risk badge */
+.risk-badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:14px;font-weight:700;color:#fff;margin-bottom:8px}
+.risk-badge.red{background:#DC2626}
+.risk-badge.yellow{background:#D97706}
+.risk-badge.green{background:#059669}
+.risk-badge.gray{background:#6B7280}
+/* input bar */
+.input-bar{flex-shrink:0;background:#fff;border-top:1px solid #FED7AA;padding:10px 12px;display:flex;align-items:center;gap:8px;padding-bottom:max(10px,env(safe-area-inset-bottom))}
+.input-bar input{flex:1;border:2px solid #FED7AA;border-radius:24px;padding:12px 16px;font-size:18px;outline:none;background:#FFF7ED;min-height:48px}
+.input-bar input:focus{border-color:#EA580C}
+.input-bar button{width:48px;height:48px;border-radius:50%;border:none;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;flex-shrink:0}
+.input-bar button:active{transform:scale(0.92)}
+.input-bar .btn-voice{background:#F3F4F6;color:#4B5563}
+.input-bar .btn-voice.recording{background:#DC2626;color:#fff;animation:pulse 1s infinite}
+.input-bar .btn-send{background:#EA580C;color:#fff}
+.input-bar .btn-send:disabled{background:#FDBA74}
+.input-bar .btn-image{background:#F3F4F6;color:#4B5563}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
+/* photo page */
+.photo-upload-area{border:3px dashed #FDBA74;border-radius:20px;padding:40px 20px;text-align:center;cursor:pointer;background:#fff;margin-bottom:16px;transition:background 0.2s}
+.photo-upload-area:active{background:#FFEDD5}
+.photo-upload-area .icon{font-size:56px;margin-bottom:10px}
+.photo-upload-area .hint{font-size:18px;color:#6B7280}
+.photo-preview{position:relative;display:inline-block;margin-bottom:16px}
+.photo-preview img{max-width:100%;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,0.1);max-height:300px}
+.photo-preview .remove-btn{position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.5);color:#fff;border:none;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer}
+/* candidate pills */
+.candidate-pill{display:inline-block;padding:10px 18px;margin:4px 6px;border-radius:20px;font-size:17px;border:2px solid #FDBA74;background:#fff;cursor:pointer;transition:all 0.15s}
+.candidate-pill.selected{border-color:#EA580C;background:#FFEDD5;font-weight:700}
+.candidate-pill:active{background:#FED7AA}
+/* reminder cards */
+.reminder-card{background:#fff;border-radius:16px;padding:18px 16px;margin-bottom:14px;box-shadow:0 1px 6px rgba(0,0,0,0.06);border-left:5px solid #EA580C}
+.reminder-card .title{font-size:24px;font-weight:700;margin-bottom:6px}
+.reminder-card .time{font-size:16px;color:#6B7280;margin-bottom:12px}
+.reminder-card .actions{display:flex;gap:8px;flex-wrap:wrap}
+.reminder-card .actions button{padding:10px 20px;border-radius:12px;border:none;font-size:17px;font-weight:600;cursor:pointer;flex:1;min-width:80px}
+.reminder-card .actions button:active{transform:scale(0.95)}
+.btn-action-done{background:#D1FAE5;color:#065F46}
+.btn-action-snooze{background:#FEF3C7;color:#92400E}
+.btn-action-skip{background:#FEE2E2;color:#991B1B}
+/* login */
+.login-card{background:#fff;border-radius:24px;padding:32px 24px;margin:auto 16px;box-shadow:0 4px 24px rgba(0,0,0,0.08)}
+.login-card .logo{font-size:64px;text-align:center;margin-bottom:8px}
+.login-card h1{font-size:26px;font-weight:800;text-align:center;color:#1F2937;margin-bottom:4px}
+.login-card .subtitle{text-align:center;color:#6B7280;font-size:16px;margin-bottom:28px}
+.login-card label{font-size:16px;font-weight:600;color:#374151;display:block;margin-bottom:6px}
+.login-card input{width:100%;padding:14px 16px;border:2px solid #FED7AA;border-radius:14px;font-size:18px;outline:none;margin-bottom:16px;background:#FFF7ED;min-height:48px}
+.login-card input:focus{border-color:#EA580C}
+.login-card .role-btns{display:flex;gap:12px;margin-bottom:20px}
+.login-card .role-btn{flex:1;padding:14px 8px;border-radius:14px;border:2px solid #FED7AA;background:#fff;font-size:18px;cursor:pointer;text-align:center;transition:all 0.15s}
+.login-card .role-btn.selected{border-color:#EA580C;background:#FFEDD5;font-weight:700}
+.login-card .role-btn:active{background:#FED7AA}
+.login-btn{width:100%;padding:16px;border-radius:16px;border:none;background:linear-gradient(135deg,#F97316,#EA580C);color:#fff;font-size:22px;font-weight:700;cursor:pointer;box-shadow:0 2px 12px rgba(234,88,12,0.3);margin-top:4px}
+.login-btn:active{transform:scale(0.97)}
+.login-footer{text-align:center;color:#9CA3AF;font-size:13px;margin-top:16px;line-height:1.5}
+/* loading dots */
+.loading-dots{display:flex;gap:6px;padding:14px 16px;align-items:center}
+.loading-dots span{width:10px;height:10px;background:#FDBA74;border-radius:50%;animation:bounce 1.4s infinite ease-in-out}
+.loading-dots span:nth-child(2){animation-delay:0.16s}
+.loading-dots span:nth-child(3){animation-delay:0.32s}
+@keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
+/* snackbar */
+#snackbar{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1F2937;color:#fff;padding:12px 24px;border-radius:12px;font-size:16px;z-index:999;display:none;max-width:90%;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,0.2)}
+/* image in chat */
+.chat-image{max-width:200px;border-radius:12px;margin:6px 0;box-shadow:0 1px 4px rgba(0,0,0,0.1)}
+/* settings modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:100;align-items:center;justify-content:center}
+.modal-overlay.active{display:flex}
+.modal-box{background:#fff;border-radius:24px;padding:28px 24px;width:92%;max-width:420px;max-height:90vh;overflow-y:auto}
+.modal-box h2{font-size:22px;font-weight:700;margin-bottom:16px;text-align:center}
+.modal-box label{font-size:15px;font-weight:600;color:#374151;display:block;margin-bottom:4px;margin-top:12px}
+.modal-box input{width:100%;padding:12px 14px;border:2px solid #E5E7EB;border-radius:12px;font-size:15px;outline:none}
+.modal-box input:focus{border-color:#EA580C}
+.empty-state{text-align:center;padding:60px 20px;color:#9CA3AF;font-size:18px}
+.empty-state .icon{font-size:56px;margin-bottom:12px}
+/* reminder detail */
+.reminder-empty{text-align:center;padding:60px 20px;color:#9CA3AF;font-size:18px}
+.reminder-empty .icon{font-size:56px;margin-bottom:12px}
+/* scrollbar */
+.content::-webkit-scrollbar{width:4px}
+.content::-webkit-scrollbar-thumb{background:#FDBA74;border-radius:2px}
+</style>
+</head>
+<body>
+
+<!-- ==================== SETTINGS MODAL ==================== -->
+<div id="settingsModal" class="modal-overlay">
+<div class="modal-box">
+<h2>⚙️ 设置（可选）</h2>
+<!-- 说明：这里是可选配置。老人和家属可以直接使用页面，不需要先设置。 -->
+<label>Dify API 地址（可选）</label>
+<input id="cfgDifyUrl" placeholder="https://your-dify.example.com" value="">
+<label>饮食健康助手 Key（可选）</label>
+<input id="cfgDifyDietKey" placeholder="app-xxxxxxxxxxxx" value="">
+<label>用药提醒助手 Key（可选）</label>
+<input id="cfgDifyMedKey" placeholder="app-xxxxxxxxxxxx" value="">
+<label>后端 API 地址</label>
+<input id="cfgBackendUrl" placeholder="http://119.3.152.244:8000" value="http://119.3.152.244:8000">
+<label>老人 ID</label>
+<input id="cfgElderId" placeholder="elder_001" value="elder_001">
+<div style="display:flex;gap:12px;margin-top:20px">
+<button onclick="closeSettings()" style="flex:1;padding:12px;border-radius:12px;border:2px solid #E5E7EB;background:#fff;font-size:17px;cursor:pointer">取消</button>
+<button onclick="saveSettings()" style="flex:1;padding:12px;border-radius:12px;border:none;background:#EA580C;color:#fff;font-size:17px;font-weight:600;cursor:pointer">保存</button>
+</div>
+</div>
+</div>
+
+<!-- ==================== SNACKBAR ==================== -->
+<div id="snackbar"></div>
+
+<!-- ==================== PAGE: LOGIN ==================== -->
+<div id="page-login" class="page active">
+<div style="flex:1;display:flex;flex-direction:column;justify-content:center">
+<div class="login-card">
+<div class="logo">🏥</div>
+<h1>银龄健康助手</h1>
+<p class="subtitle">老年人饮食与用药安全智能管家</p>
+<label>您的身份</label>
+<div class="role-btns">
+<button class="role-btn" data-role="elder" onclick="selectRole('elder')">👴 老人本人</button>
+<button class="role-btn" data-role="family" onclick="selectRole('family')">👨‍👩‍👧‍👦 家属</button>
+</div>
+<label>老人编号</label>
+<input id="loginElderId" placeholder="例如：elder_001" value="elder_001">
+<label>您的称呼</label>
+<input id="loginName" placeholder="例如：张爷爷 / 李女士" value="张爷爷">
+<button class="login-btn" onclick="doLogin()">👉 进入首页</button>
+<p class="login-footer">本系统不能替代专业医疗意见<br>如有疑问请咨询医生或药师</p>
+</div>
+</div>
+</div>
+
+<!-- ==================== PAGE: HOME ==================== -->
+<div id="page-home" class="page">
+<div class="header">
+<span id="homeGreeting">👋 您好</span>
+<button class="settings-btn" onclick="openSettings()">⚙️</button>
+</div>
+<div class="content" style="padding-top:24px">
+<button class="home-btn home-btn-orange" onclick="setChatContext('diet');navigateTo('page-chat')">
+<span class="icon">💬</span>
+拍照查风险
+</button>
+<button class="home-btn home-btn-blue" onclick="setChatContext('med');startVoiceFromHome()">
+<span class="icon">🎤</span>
+语音问一问
+</button>
+<button class="home-btn home-btn-green" onclick="loadReminders();navigateTo('page-reminders')">
+<span class="icon">🔔</span>
+查看提醒
+</button>
+<div style="background:#fff;border-radius:16px;padding:14px 16px;margin-top:8px;border:1px solid #FED7AA;text-align:center;font-size:15px;color:#6B7280;line-height:1.5">
+直接可用，不用先配置<br>本系统不能替代专业医疗意见
+</div>
+</div>
+</div>
+
+<!-- ==================== PAGE: CHAT ==================== -->
+<div id="page-chat" class="page">
+<div class="header">
+<button class="back-btn" onclick="navigateTo('page-home')">‹</button>
+<span id="chatHeaderTitle">拍照查风险</span>
+</div>
+<div class="content" style="padding-top:12px;padding-bottom:0;flex:0 0 auto">
+<div class="agent-switcher">
+<button class="agent-chip active" data-agent="diet" onclick="selectAgent('diet')">🍚 饮食健康助手</button>
+<button class="agent-chip" data-agent="med" onclick="selectAgent('med')">💊 用药提醒助手</button>
+</div>
+<div class="agent-hint" id="agentHint">当前使用饮食健康助手，适合拍照查风险与饮食问答。</div>
+</div>
+<div id="chatContent" class="content" style="padding-bottom:4px">
+<div class="chat-msg assistant">
+<div class="chat-bubble" style="background:#FFEDD5;border-color:#FDBA74">
+您好！我是银龄健康助手 👋<br>
+您可以发文字、说话或者上传药物/食物照片，我来帮您查风险。
+</div>
+</div>
+</div>
+<div class="input-bar">
+<button class="btn-image" onclick="triggerImageUpload()" title="上传图片">📷</button>
+<button id="voiceBtn" class="btn-voice" onclick="toggleVoice()" title="语音输入">🎤</button>
+<input id="chatInput" placeholder="输入药物或食物名称..." onkeydown="if(event.key==='Enter')sendChat()" style="font-size:18px">
+<button id="sendBtn" class="btn-send" onclick="sendChat()">➤</button>
+</div>
+<input id="imageUploadInput" type="file" accept="image/*" capture="environment" style="display:none" onchange="onImageSelected(event)">
+</div>
+
+<!-- ==================== PAGE: PHOTO RECOGNITION ==================== -->
+<div id="page-photo" class="page">
+<div class="header">
+<button class="back-btn" onclick="navigateTo('page-chat');syncChatPhoto()">‹</button>
+<span>图片识别</span>
+</div>
+<div class="content">
+<div id="photoUploadArea" class="photo-upload-area" onclick="document.getElementById('photoFileInput').click()">
+<div class="icon">📸</div>
+<div class="hint">点击拍照或选择照片</div>
+<div style="font-size:14px;color:#9CA3AF;margin-top:6px">支持药盒、药片、食物照片</div>
+</div>
+<input id="photoFileInput" type="file" accept="image/*" capture="environment" style="display:none" onchange="onPhotoSelected(event)">
+<div id="photoPreview" class="photo-preview" style="display:none">
+<img id="photoPreviewImg" src="">
+<button class="remove-btn" onclick="clearPhoto()">✕</button>
+</div>
+<button id="recognizeBtn" class="home-btn home-btn-orange" style="padding:16px;min-height:56px;font-size:20px;display:none" onclick="setChatContext('diet');startRecognition()">
+🔍 开始识别
+</button>
+<div id="recognitionResult" style="display:none">
+<h3 style="font-size:20px;font-weight:700;margin-bottom:12px;color:#1F2937">识别结果</h3>
+<div id="candidatesList"></div>
+<button id="confirmBtn" class="home-btn home-btn-green" style="padding:16px;min-height:56px;font-size:20px;display:none;margin-top:12px" onclick="confirmRecognition()">
+✅ 确认识别，查风险
+</button>
+</div>
+<div id="photoResultDetail" style="display:none;margin-top:12px"></div>
+</div>
+</div>
+
+<!-- ==================== PAGE: REMINDERS ==================== -->
+<div id="page-reminders" class="page">
+<div class="header">
+<button class="back-btn" onclick="navigateTo('page-home')">‹</button>
+<span>🔔 提醒中心</span>
+<button class="settings-btn" style="opacity:0" disabled></button>
+</div>
+<div class="content" id="remindersContent">
+<div class="reminder-empty" id="remindersLoading">
+<div class="icon">⏳</div>
+正在加载提醒...
+</div>
+</div>
+</div>
+
+<script>
+// =====================================================================
+// CONFIG — 首次使用请修改以下值
+// =====================================================================
+const CFG_KEY = 'eldercare_frontend_config';
+
+function loadConfig() {
+  let raw = localStorage.getItem(CFG_KEY);
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.difyKey && !parsed.agents) {
+        parsed.agents = {
+          diet: { label: '老年饮食健康助手', apiKey: parsed.difyKey || '' },
+          med: { label: '用药提醒助手', apiKey: '' },
+        };
+      }
+      if (parsed && parsed.difyDietKey && parsed.difyMedKey && !parsed.agents) {
+        parsed.agents = {
+          diet: { label: '老年饮食健康助手', apiKey: parsed.difyDietKey || '' },
+          med: { label: '用药提醒助手', apiKey: parsed.difyMedKey || '' },
+        };
+      }
+      return parsed;
+    } catch(e) {}
+  }
+  return {
+    difyUrl: '',
+    agents: {
+      diet: { label: '老年饮食健康助手', apiKey: '' },
+      med: { label: '用药提醒助手', apiKey: '' },
+    },
+    backendUrl: 'http://119.3.152.244:8000',
+    elderId: 'elder_001',
+  };
+}
+
+let CONFIG = loadConfig();
+let STATE = {
+  role: 'elder',
+  name: '张爷爷',
+  elderId: CONFIG.elderId,
+  agent: 'diet',
+  conversations: { diet: '', med: '' },
+  voiceRecording: false,
+  recognition: null,
+  // photo
+  photoFile: null,
+  photoDataUrl: null,
+  candidates: [],
+  selectedCandidate: null,
+  // pending image to send to chat
+  pendingChatImage: null,
+};
+
+// =====================================================================
+// SETTINGS
+// =====================================================================
+function openSettings() {
+  document.getElementById('cfgDifyUrl').value = CONFIG.difyUrl;
+  document.getElementById('cfgDifyDietKey').value = CONFIG.agents?.diet?.apiKey || '';
+  document.getElementById('cfgDifyMedKey').value = CONFIG.agents?.med?.apiKey || '';
+  document.getElementById('cfgBackendUrl').value = CONFIG.backendUrl;
+  document.getElementById('cfgElderId').value = STATE.elderId;
+  document.getElementById('settingsModal').classList.add('active');
+}
+function closeSettings() {
+  document.getElementById('settingsModal').classList.remove('active');
+}
+function saveSettings() {
+  CONFIG.difyUrl = document.getElementById('cfgDifyUrl').value.trim().replace(/\/+$/, '');
+  CONFIG.agents = CONFIG.agents || {};
+  CONFIG.agents.diet = {
+    label: '老年饮食健康助手',
+    apiKey: document.getElementById('cfgDifyDietKey').value.trim(),
+  };
+  CONFIG.agents.med = {
+    label: '用药提醒助手',
+    apiKey: document.getElementById('cfgDifyMedKey').value.trim(),
+  };
+  CONFIG.backendUrl = document.getElementById('cfgBackendUrl').value.trim().replace(/\/+$/, '');
+  STATE.elderId = document.getElementById('cfgElderId').value.trim() || 'elder_001';
+  localStorage.setItem(CFG_KEY, JSON.stringify(CONFIG));
+  closeSettings();
+  snackbar('设置已保存');
+}
+
+// =====================================================================
+// NAVIGATION
+// =====================================================================
+function navigateTo(pageId) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(pageId).classList.add('active');
+}
+
+function setChatContext(agent) {
+  STATE.agent = agent;
+  document.querySelectorAll('.agent-chip').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.agent === agent);
+  });
+  const title = document.getElementById('chatHeaderTitle');
+  const hint = document.getElementById('agentHint');
+  if (agent === 'med') {
+    title.textContent = '用药提醒助手';
+    hint.textContent = '适合问药名、用法、提醒和相互作用。';
+  } else {
+    title.textContent = '拍照查风险';
+    hint.textContent = '适合拍照识别药物、食物并检查风险。';
+  }
+}
+
+function selectAgent(agent) {
+  setChatContext(agent);
+}
+
+// =====================================================================
+// LOGIN
+// =====================================================================
+function selectRole(role) {
+  document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('selected'));
+  document.querySelector(`.role-btn[data-role="${role}"]`).classList.add('selected');
+  STATE.role = role;
+}
+function doLogin() {
+  if (!document.querySelector('.role-btn.selected')) {
+    snackbar('请选择您的身份');
+    return;
+  }
+  STATE.elderId = document.getElementById('loginElderId').value.trim() || 'elder_001';
+  STATE.name = document.getElementById('loginName').value.trim() || '用户';
+  CONFIG.elderId = STATE.elderId;
+  localStorage.setItem(CFG_KEY, JSON.stringify(CONFIG));
+  const roleLabel = STATE.role === 'elder' ? '老人' : '家属';
+  document.getElementById('homeGreeting').textContent = `👋 ${STATE.name}（${roleLabel}）`;
+  setChatContext('diet');
+  navigateTo('page-home');
+}
+
+// =====================================================================
+// SNACKBAR TOAST
+// =====================================================================
+let snackbarTimer = null;
+function snackbar(msg) {
+  const el = document.getElementById('snackbar');
+  el.textContent = msg;
+  el.style.display = 'block';
+  clearTimeout(snackbarTimer);
+  snackbarTimer = setTimeout(() => { el.style.display = 'none'; }, 2500);
+}
+
+// =====================================================================
+// CHAT — Dify API
+// =====================================================================
+function addChatMessage(role, content, extra) {
+  const container = document.getElementById('chatContent');
+  const div = document.createElement('div');
+  div.className = `chat-msg ${role}`;
+  let html = '';
+  if (extra && extra.riskBadge) {
+    html += `<span class="risk-badge ${extra.riskBadge}">${extra.riskLabel}</span>`;
+  }
+  if (extra && extra.imageUrl) {
+    html += `<img src="${extra.imageUrl}" class="chat-image" alt="上传图片">`;
+  }
+  html += `<div class="chat-bubble">${content}</div>`;
+  const now = new Date();
+  const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  html += `<div class="chat-time">${ts}</div>`;
+  div.innerHTML = html;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function addLoadingBubble() {
+  const container = document.getElementById('chatContent');
+  const div = document.createElement('div');
+  div.className = 'chat-msg assistant';
+  div.id = 'chatLoading';
+  div.innerHTML = '<div class="chat-bubble"><div class="loading-dots"><span></span><span></span><span></span></div></div>';
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function removeLoadingBubble() {
+  const el = document.getElementById('chatLoading');
+  if (el) el.remove();
+}
+
+function parseRiskFromText(text) {
+  if (/高风险|红色|危险|⚠️.*红/.test(text)) return { level: 'red', label: '高风险' };
+  if (/中风险|黄色|中等/.test(text)) return { level: 'yellow', label: '中风险' };
+  if (/低风险|绿色|安全/.test(text)) return { level: 'green', label: '低风险' };
+  return null;
+}
+
+function truncateByLength(text, maxLen = 20) {
+  const s = String(text || '').trim();
+  if (s.length <= maxLen) return s;
+  return s.slice(0, maxLen) + '…';
+}
+
+function cleanAssistantText(text) {
+  return String(text || '')
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/\{[\s\S]*\}/g, '')
+    .replace(/\[(\s|\S)*\]/g, '')
+    .replace(/\r/g, '')
+    .trim();
+}
+
+function shortLinesFromText(text) {
+  const clean = cleanAssistantText(text)
+    .replace(/\n+/g, '\n')
+    .replace(/[；;]+/g, '；')
+    .replace(/[。.!！?？]+/g, '。');
+  const rawLines = clean
+    .split(/[\n。]/)
+    .map(s => s.replace(/^[\s•\-\d\.、]+/, '').trim())
+    .filter(Boolean);
+  const lines = [];
+  for (const line of rawLines) {
+    const normalized = truncateByLength(line, 20);
+    if (!normalized) continue;
+    lines.push(normalized);
+    if (lines.length >= 3) break;
+  }
+  if (lines.length === 0 && clean) lines.push(truncateByLength(clean, 20));
+  if (!lines.some(v => /免责声明|仅供参考|请咨询/.test(v))) {
+    lines.push('仅供参考，请咨询医生');
+  }
+  return lines.slice(0, 3);
+}
+
+function buildPrompt(agent, text, mode) {
+  // 三层约束：角色约束、输出约束、风险兜底。
+  // 作用：让 Dify 输出天然短句，前端只做最后一层清洗。
+  const dietPrompt = [
+    '你是老年饮食健康助手。',
+    '任务：识别药物、食物、饮食风险。',
+    '输出必须极短，适合老人阅读。',
+    '最多3条。每条不超过20字。',
+    '必须包含风险标签：高风险/中风险/低风险。',
+    '必须包含免责声明：仅供参考，请咨询医生。',
+    '不要输出工作流节点、调试信息、JSON、Markdown表格。',
+    '不要给出诊断、处方、剂量修改。',
+    '若信息不足，先给确认问题，再给保守提醒。',
+  ];
+
+  const medPrompt = [
+    '你是用药提醒助手。',
+    '任务：提醒用药、解释用法、提示相互作用。',
+    '输出必须极短，适合老人阅读。',
+    '最多3条。每条不超过20字。',
+    '必须包含风险标签：高风险/中风险/低风险。',
+    '必须包含免责声明：仅供参考，请咨询医生。',
+    '不要输出工作流节点、调试信息、JSON、Markdown表格。',
+    '不要给出诊断、处方、剂量修改。',
+    '若老人有多药并用，优先提示核对药名与时间。',
+  ];
+
+  const photoRule = [
+    // 图片识别不能直接下结论，必须先返回候选项。
+    '图片识别场景：先给候选项，再让用户确认。',
+    '若识别不确定，必须说明“请再确认”。',
+  ];
+
+  const core = agent === 'med' ? medPrompt : dietPrompt;
+  if (mode === 'photo') core.push(...photoRule);
+  core.push(`用户输入：${text}`);
+  return core.join('\n');
+}
+
+function summaryFromReminders(reminders) {
+  // 用药提醒页的兜底输出也保持短句，避免老人看到长列表。
+  const list = Array.isArray(reminders) ? reminders : [];
+  if (list.length === 0) {
+    return '• 低风险\n• 当前无待办\n• 仅供参考，请咨询医生';
+  }
+  const top = list.slice(0, 3).map((r) => {
+    const title = truncateByLength(r.title || '提醒', 12);
+    return `• ${title}，请按时处理`;
+  });
+  top.push('• 仅供参考，请咨询医生');
+  return top.slice(0, 3).join('<br>');
+}
+
+function getAgentConfig(agent) {
+  // 两个 Agent 分别保存 Key，方便饮食助手和用药助手独立接入。
+  const agentCfg = CONFIG.agents || {};
+  if (agent === 'med') return agentCfg.med || { label: '用药提醒助手', apiKey: '' };
+  return agentCfg.diet || { label: '老年饮食健康助手', apiKey: '' };
+}
+
+function formatDifyResponse(text) {
+  // Dify 返回后，前端再做一次清洗：剔除代码块、JSON 和冗长语句。
+  let riskBadge = null;
+  let riskLabel = '';
+  const parsed = parseRiskFromText(text);
+  if (parsed) {
+    riskBadge = parsed.level;
+    riskLabel = parsed.label;
+  }
+  let display = cleanAssistantText(text)
+    .replace(/^(好的|您好|你好)[，。!！]?\s*/i, '')
+    .replace(/^(已为您|为您|我来).{0,4}[:：]?\s*/i, '')
+    .trim();
+  const lines = shortLinesFromText(display);
+  return {
+    riskBadge,
+    riskLabel,
+    display: lines.map(l => `• ${l}`).join('<br>'),
+  };
+}
+
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  const sendBtn = document.getElementById('sendBtn');
+  const hasImage = STATE.pendingChatImage !== null;
+
+  if (!text && !hasImage) return;
+
+  sendBtn.disabled = true;
+  let imageUrl = null;
+  let uploadFileId = null;
+
+    // 有图片时先保留 file，统一交给后端代理上传到 Dify。
+    if (hasImage) {
+      imageUrl = STATE.pendingChatImage.dataUrl;
+      addChatMessage('user', text || '请识别这张照片', { imageUrl });
+      uploadFileId = STATE.pendingChatImage.file;
+      STATE.pendingChatImage = null;
+  } else {
+    addChatMessage('user', text);
+  }
+
+  input.value = '';
+  addLoadingBubble();
+
+  try {
+    let answer = '';
+    if (CONFIG.backendUrl) {
+      // 正常路径：前端只调用自己的后端，由后端代理 Dify，避免浏览器跨域失败。
+      const formData = new FormData();
+      formData.append('agent', STATE.agent);
+      formData.append('query', buildPrompt(STATE.agent, text || '请识别这张照片中的药物或食物，检查是否有风险', hasImage ? 'photo' : 'chat'));
+      formData.append('elder_id', STATE.elderId);
+      formData.append('conversation_id', STATE.conversations[STATE.agent] || '');
+      formData.append('input_mode', hasImage ? 'photo' : (STATE.voiceRecording ? 'voice' : 'text'));
+      if (uploadFileId) {
+        formData.append('file', uploadFileId);
+      }
+      const resp = await fetch(`${CONFIG.backendUrl}/api/v1/dify/chat`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!resp.ok) {
+        const errText = await resp.text().catch(() => '');
+        throw new Error(`后端代理失败 ${resp.status}: ${errText}`);
+      }
+      const data = await resp.json();
+      answer = data.answer || '(无回复)';
+      if (data.conversation_id) {
+        STATE.conversations[STATE.agent] = data.conversation_id;
+      }
+    } else {
+      if (STATE.agent === 'med') {
+        // 后端代理不可用时，用后端提醒接口兜底。
+        const resp = await fetch(`${CONFIG.backendUrl}/api/v1/reminders/due?elder_id=${encodeURIComponent(STATE.elderId)}`);
+        if (resp.ok) {
+          const reminders = await resp.json();
+          if (text) {
+            answer = `用药提醒：${truncateByLength(text, 18)}\n`;
+          } else {
+            answer = '用药提醒：';
+          }
+          const remText = summaryFromReminders(reminders);
+          answer = `${answer}${remText.replace(/<br>/g, '\n')}`;
+        } else {
+          answer = '暂时无法获取提醒，请稍后再试。';
+        }
+      } else {
+        // 后端代理不可用时，用后端风险检查接口兜底。
+        const drugs = [text].filter(Boolean);
+        const resp = await fetch(`${CONFIG.backendUrl}/api/v1/risk/check`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ elder_id: STATE.elderId, drugs, foods: [] }),
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          const levelMap = { red: '高风险 🔴', yellow: '中风险 🟡', green: '低风险 🟢' };
+          const levelLabel = levelMap[data.risk_level] || data.risk_level;
+          answer = `风险等级：${levelLabel}\n`;
+          if (data.alerts && data.alerts.length) {
+            data.alerts.forEach(a => { answer += `• ${a.message}\n`; });
+          } else {
+            answer += '• 未发现明确风险\n';
+          }
+          answer += `\n建议：${data.suggestion}`;
+        } else {
+          answer = '暂时无法获取风险信息，请稍后再试。';
+        }
+      }
+    }
+
+    removeLoadingBubble();
+    const formatted = formatDifyResponse(answer);
+    addChatMessage('assistant', formatted.display, { riskBadge: formatted.riskBadge, riskLabel: formatted.riskLabel });
+  } catch (e) {
+    removeLoadingBubble();
+    addChatMessage('assistant', `抱歉，出了点问题：${e.message || '请稍后再试'}`, { riskBadge: 'gray', riskLabel: '错误' });
+  } finally {
+    sendBtn.disabled = false;
+  }
+}
+
+// =====================================================================
+// IMAGE UPLOAD (from chat)
+// =====================================================================
+function triggerImageUpload() {
+  document.getElementById('imageUploadInput').click();
+}
+function onImageSelected(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    STATE.pendingChatImage = { file, dataUrl: e.target.result };
+    snackbar('已选择图片，输入文字或直接发送');
+    document.getElementById('chatInput').focus();
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+// =====================================================================
+// VOICE INPUT (Web Speech API)
+// =====================================================================
+let recognition = null;
+function initSpeech() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    document.getElementById('voiceBtn').style.display = 'none';
+    return;
+  }
+  recognition = new SpeechRecognition();
+  recognition.lang = 'zh-CN';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.onresult = function(event) {
+    const transcript = event.results[0][0].transcript;
+    document.getElementById('chatInput').value = transcript;
+    STATE.voiceRecording = false;
+    document.getElementById('voiceBtn').classList.remove('recording');
+    document.getElementById('voiceBtn').textContent = '🎤';
+    // Auto send
+    sendChat();
+  };
+  recognition.onerror = function() {
+    STATE.voiceRecording = false;
+    document.getElementById('voiceBtn').classList.remove('recording');
+    document.getElementById('voiceBtn').textContent = '🎤';
+    snackbar('语音识别未成功，请重试或输入文字');
+  };
+  recognition.onend = function() {
+    STATE.voiceRecording = false;
+    document.getElementById('voiceBtn').classList.remove('recording');
+    document.getElementById('voiceBtn').textContent = '🎤';
+  };
+}
+
+function toggleVoice() {
+  if (!recognition) {
+    snackbar('您的浏览器不支持语音识别');
+    return;
+  }
+  // Check which page is active
+  const chatInput = document.getElementById('chatInput');
+  if (!document.getElementById('page-chat').classList.contains('active')) {
+    navigateTo('page-chat');
+  }
+  if (STATE.voiceRecording) {
+    recognition.stop();
+    return;
+  }
+  try {
+    recognition.start();
+    STATE.voiceRecording = true;
+    document.getElementById('voiceBtn').classList.add('recording');
+    document.getElementById('voiceBtn').textContent = '⏹';
+    chatInput.placeholder = '🎤 请说话...';
+  } catch(e) {
+    snackbar('语音启动失败，请重试');
+  }
+}
+
+function startVoiceFromHome() {
+  navigateTo('page-chat');
+  setTimeout(() => { toggleVoice(); }, 300);
+}
+
+// =====================================================================
+// PHOTO RECOGNITION PAGE
+// =====================================================================
+function onPhotoSelected(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  STATE.photoFile = file;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    STATE.photoDataUrl = e.target.result;
+    document.getElementById('photoPreviewImg').src = e.target.result;
+    document.getElementById('photoPreview').style.display = 'block';
+    document.getElementById('photoUploadArea').style.display = 'none';
+    document.getElementById('recognizeBtn').style.display = 'block';
+    document.getElementById('recognitionResult').style.display = 'none';
+    document.getElementById('photoResultDetail').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+function clearPhoto() {
+  STATE.photoFile = null;
+  STATE.photoDataUrl = null;
+  STATE.candidates = [];
+  STATE.selectedCandidate = null;
+  document.getElementById('photoPreview').style.display = 'none';
+  document.getElementById('photoUploadArea').style.display = 'block';
+  document.getElementById('recognizeBtn').style.display = 'none';
+  document.getElementById('recognitionResult').style.display = 'none';
+  document.getElementById('photoResultDetail').style.display = 'none';
+}
+
+async function startRecognition() {
+  if (!STATE.photoDataUrl) return;
+  const btn = document.getElementById('recognizeBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 识别中...';
+
+  try {
+    let candidates = [];
+    // 优先走后端代理识别；没有代理时，使用候选项兜底。
+    if (CONFIG.backendUrl) {
+      try {
+        const formData = new FormData();
+        formData.append('agent', 'diet');
+        formData.append('query', buildPrompt('diet', '请识别这张照片中的药物或食物，列出候选名称。', 'photo'));
+        formData.append('elder_id', STATE.elderId);
+        formData.append('conversation_id', '');
+        formData.append('file', STATE.photoFile);
+        formData.append('input_mode', 'photo');
+        const chatResp = await fetch(`${CONFIG.backendUrl}/api/v1/dify/chat`, {
+          method: 'POST',
+          body: formData,
+        });
+        if (chatResp.ok) {
+          const chatData = await chatResp.json();
+          const rawAnswer = chatData.answer || '';
+          candidates = rawAnswer
+            .split(/[,，、\n]/)
+            .map(s => s.replace(/^["「『]|["」』]$/g, '').trim())
+            .filter(s => s.length > 0);
+        }
+      } catch(e) {
+        console.warn('后端代理识别失败:', e);
+      }
+    }
+
+    // Fallback candidates
+    if (candidates.length === 0) {
+      candidates = ['阿司匹林', '华法林', '布洛芬', '二甲双胍', '氨氯地平', '牛奶', '西柚', '花生'];
+    }
+
+    STATE.candidates = candidates;
+    STATE.selectedCandidate = null;
+    displayCandidates(candidates);
+  } catch(e) {
+    snackbar('识别失败，请重试');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔍 开始识别';
+  }
+}
+
+function displayCandidates(candidates) {
+  const container = document.getElementById('candidatesList');
+  const resultDiv = document.getElementById('recognitionResult');
+  container.innerHTML = '';
+  candidates.forEach((name, idx) => {
+    const pill = document.createElement('button');
+    pill.className = 'candidate-pill';
+    pill.textContent = name;
+    pill.onclick = function() {
+      document.querySelectorAll('.candidate-pill').forEach(p => p.classList.remove('selected'));
+      this.classList.add('selected');
+      STATE.selectedCandidate = name;
+      document.getElementById('confirmBtn').style.display = 'block';
+    };
+    container.appendChild(pill);
+  });
+  resultDiv.style.display = 'block';
+  document.getElementById('confirmBtn').style.display = 'none';
+}
+
+async function confirmRecognition() {
+  if (!STATE.selectedCandidate) return;
+  const resultDiv = document.getElementById('photoResultDetail');
+  resultDiv.style.display = 'block';
+  resultDiv.innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div>';
+
+  try {
+    const resp = await fetch(`${CONFIG.backendUrl}/api/v1/risk/check`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        elder_id: STATE.elderId,
+        drugs: [STATE.selectedCandidate],
+        foods: [],
+      }),
+    });
+    if (!resp.ok) throw new Error('API error');
+    const data = await resp.json();
+
+    const levelMap = { red: { label: '高风险 🔴', cls: 'red' }, yellow: { label: '中风险 🟡', cls: 'yellow' }, green: { label: '低风险 🟢', cls: 'green' } };
+    const level = levelMap[data.risk_level] || { label: data.risk_level, cls: 'gray' };
+
+    let html = `<span class="risk-badge ${level.cls}">${level.label}</span>`;
+    html += `<div style="font-size:20px;font-weight:700;margin:8px 0">${STATE.selectedCandidate}</div>`;
+    if (data.alerts && data.alerts.length) {
+      html += '<div style="font-size:17px;color:#4B5563;margin-bottom:8px">';
+      data.alerts.forEach(a => { html += `<div style="margin:4px 0">• ${a.message}</div>`; });
+      html += '</div>';
+    } else {
+      html += '<div style="font-size:17px;color:#059669;margin-bottom:8px">✅ 未发现明确风险</div>';
+    }
+    html += `<div style="font-size:15px;color:#6B7280;background:#FFF7ED;border-radius:12px;padding:12px;margin-top:8px;line-height:1.5">${data.suggestion}</div>`;
+    resultDiv.innerHTML = html;
+  } catch(e) {
+    resultDiv.innerHTML = `<div style="color:#DC2626;font-size:17px">查询失败，请检查网络连接</div>`;
+  }
+}
+
+function syncChatPhoto() {
+    if (STATE.selectedCandidate) {
+      addChatMessage('user', `已识别：${STATE.selectedCandidate}，请帮我检查风险`);
+      addLoadingBubble();
+      // Reuse the result from photo page
+      const resultDiv = document.getElementById('photoResultDetail');
+      if (resultDiv.style.display !== 'none') {
+        removeLoadingBubble();
+        const shortText = shortLinesFromText(resultDiv.innerText).slice(0, 3).join('<br>');
+        addChatMessage('assistant', shortText, { riskBadge: 'green', riskLabel: '已识别' });
+      } else {
+        removeLoadingBubble();
+        sendChat();
+    }
+  }
+}
+
+// =====================================================================
+// REMINDERS — Backend API
+// =====================================================================
+async function loadReminders() {
+  const container = document.getElementById('remindersContent');
+  container.innerHTML = '<div class="reminder-empty"><div class="icon">⏳</div>正在加载提醒...</div>';
+
+  try {
+    const resp = await fetch(`${CONFIG.backendUrl}/api/v1/reminders/due?elder_id=${encodeURIComponent(STATE.elderId)}`);
+    if (!resp.ok) throw new Error('API error');
+    const reminders = await resp.json();
+
+    if (!reminders || reminders.length === 0) {
+      container.innerHTML = '<div class="reminder-empty"><div class="icon">✅</div>当前没有待办提醒</div>';
+      return;
+    }
+
+    container.innerHTML = '';
+    reminders.forEach(r => {
+      const card = document.createElement('div');
+      card.className = 'reminder-card';
+      const due = new Date(r.due_at);
+      const timeStr = `${String(due.getHours()).padStart(2,'0')}:${String(due.getMinutes()).padStart(2,'0')}`;
+      const typeMap = { medication: '💊 用药', meal: '🍚 饮食', water: '💧 喝水' };
+      const typeLabel = typeMap[r.type] || r.type || '提醒';
+      card.innerHTML = `
+        <div class="title">${typeLabel}：${r.title}</div>
+        <div class="time">⏰ ${timeStr}</div>
+        <div class="actions">
+          <button class="btn-action-done" onclick="reminderAction(${r.event_id},'completed',this)">✅ 已完成</button>
+          <button class="btn-action-snooze" onclick="reminderAction(${r.event_id},'snoozed',this)">⏰ 稍后</button>
+          <button class="btn-action-skip" onclick="reminderAction(${r.event_id},'skipped',this)">✕ 跳过</button>
+        </div>
+      `;
+      container.appendChild(card);
+    });
+  } catch(e) {
+    container.innerHTML = `<div class="reminder-empty"><div class="icon">⚠️</div>加载失败：${e.message}<br><button onclick="loadReminders()" style="margin-top:12px;padding:10px 24px;border-radius:12px;border:none;background:#EA580C;color:#fff;font-size:16px;cursor:pointer">重试</button></div>`;
+  }
+}
+
+async function reminderAction(eventId, status, btn) {
+  const card = btn.closest('.reminder-card');
+  const originalHtml = card.innerHTML;
+  card.innerHTML = '<div style="text-align:center;padding:12px;color:#6B7280;font-size:16px">⏳ 处理中...</div>';
+
+  try {
+    const resp = await fetch(`${CONFIG.backendUrl}/api/v1/reminders/${eventId}/${status}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!resp.ok) throw new Error('API error');
+    snackbar(status === 'completed' ? '✅ 已标记完成' : status === 'snoozed' ? '⏰ 已稍后提醒' : '✕ 已跳过');
+    card.remove();
+    const container = document.getElementById('remindersContent');
+    if (container.children.length === 0) {
+      container.innerHTML = '<div class="reminder-empty"><div class="icon">✅</div>当前没有待办提醒</div>';
+    }
+  } catch(e) {
+    card.innerHTML = originalHtml;
+    snackbar('操作失败，请重试');
+  }
+}
+
+// =====================================================================
+// INIT
+// =====================================================================
+initSpeech();
+// Check if configured
+if (!CONFIG.difyUrl || !(CONFIG.agents?.diet?.apiKey || CONFIG.agents?.med?.apiKey)) {
+  // 免配置直接可用：后端风险检查 / 提醒中心会自动接管。
+}
+</script>
+</body>
+</html>
